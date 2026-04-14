@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Juego de Clasificación HD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800&family=Nunito:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --text-color: #f1f2f6;
+            --btn-color: #ff6b81;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            overflow: hidden;
+            background-color: #2f3542;
+            font-family: 'Nunito', sans-serif;
+        }
+
+        .screen {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* --- Pantallas de UI --- */
+        #start-screen, #win-screen {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.9) 0%, rgba(52, 152, 219, 0.9) 100%);
+            text-align: center;
+            z-index: 200;
+        }
+
+        .title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 4rem;
+            color: #fff;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 1.5rem;
+            color: #fff;
+            margin-bottom: 30px;
+            font-weight: bold;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .btn {
+            background-color: var(--btn-color);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.8rem;
+            font-family: 'Montserrat', sans-serif;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #c0392b, 0 10px 20px rgba(0,0,0,0.3);
+            transition: all 0.1s;
+        }
+
+        .btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0px 0 #c0392b, 0 4px 4px rgba(0,0,0,0.2);
+        }
+
+        .btn.hidden { display: none; }
+
+        /* --- Pantalla de Juego y Fotorrealismo --- */
+        #game-screen { flex-direction: row; }
+
+        .habitat {
+            width: 50%;
+            height: 100%;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            border-right: 2px solid rgba(255,255,255,0.3);
+        }
+
+        /* Utilizando fotos de alta resolución de Unsplash */
+        #habitat-bosque {
+            background-image: url('https://images.unsplash.com/photo-1448375240586-882707db888b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            /* Filtro SVG animado para simular brisa */
+            filter: url(#wind-filter);
+        }
+
+        #habitat-oceano {
+            background-image: url('https://images.unsplash.com/photo-1582967788606-a171c1080cb0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            /* Filtro SVG animado para simular olas bajo el agua */
+            filter: url(#water-filter) brightness(0.9);
+        }
+
+        .habitat-label {
+            position: absolute;
+            top: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.2rem;
+            color: #fff;
+            z-index: 10;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* --- Fichas Interactivas (Tokens) de Animales --- */
+        #center-zone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 150px;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.4);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+        }
+
+        #animal-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Las imágenes fotográficas se muestran como tokens / fichas circulares */
+        .animal-token {
+            width: 130px;
+            height: 130px;
+            background-color: #fff;
+            border-radius: 50%;
+            border: 5px solid #fff;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+            cursor: grab;
+            position: absolute;
+            z-index: 100;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 4rem; /* Fallback para emojis hasta que carguen fotos */
+        }
+
+        .animal-token:active { cursor: grabbing; }
+
+        .animal-token.dragging {
+            transition: none;
+            transform: scale(1.15);
+            z-index: 999;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+
+        .animal-token.placed {
+            position: absolute;
+            animation: dropIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #feedback-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 8rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            text-shadow: 0 0 20px rgba(255,255,255,0.8);
+        }
+
+        @keyframes dropIn {
+            0% { transform: scale(1.5) translateY(-20px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        /* Confetti */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            background-color: #f00;
+            animation: rain 3s linear infinite;
+            z-index: 150;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        @keyframes rain {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1;}
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0;}
+        }
+
+        @media (max-width: 768px) {
+            #game-screen { flex-direction: column; }
+            .habitat { width: 100%; height: 50%; border-right: none; border-bottom: 2px solid rgba(255,255,255,0.3); }
+            #center-zone { width: 120px; height: 120px; }
+            .animal-token { width: 100px; height: 100px; }
+            .title { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Efectos SVG WebGL para alterar las fotos y crear viento/agua fluido en tiempo real SIN pesados MP4 -->
+    <svg width="0" height="0" style="position: absolute; z-index: -1;">
+        <!-- Viento suave para el bosque -->
+        <filter id="wind-filter">
+            <feTurbulence type="fractalNoise" baseFrequency="0.01 0.05" numOctaves="1" result="noise">
+                <!-- La animación de la fase altera la foto pareciendo viento en las hojas -->
+                <animate attributeName="baseFrequency" values="0.01 0.05; 0.015 0.055; 0.01 0.05" dur="10s" repeatCount="indefinite" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+
+        <!-- Corrientes marinas para el océano -->
+        <filter id="water-filter">
+            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise">
+                <!-- Una oscilación más rápida para simular cáusticas submarinas -->
+                <animate attributeName="baseFrequency" values="0.01; 0.02; 0.01" dur="8s" repeatCount="indefinite" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="15" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+    </svg>
+
+    <!-- UI Juego -->
+    <div id="start-screen" class="screen active">
+        <h1 class="title">Rescate en la Naturaleza</h1>
+        <p>Arrastra los animales a su hábitat natural.</p>
+        <button id="start-btn" class="btn">Comenzar Exploración</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div id="habitat-bosque" class="habitat" data-type="bosque">
+            <div class="habitat-label">Bosque Denso</div>
+        </div>
+        
+        <div id="habitat-oceano" class="habitat" data-type="oceano">
+            <div class="habitat-label">Océano Profundo</div>
+        </div>
+
+        <div id="center-zone">
+            <div id="animal-container"></div>
+        </div>
+
+        <div id="feedback-icon"></div>
+    </div>
+
+    <div id="win-screen" class="screen">
+        <h1 class="title" style="font-size: 3rem;">¡Exploración Exitosa!</h1>
+        <p id="win-message">Todos los animales volvieron a su hogar vivo.</p>
+        <button id="next-level-btn" class="btn hidden">Descubrir Más</button>
+        <button id="restart-btn" class="btn hidden">Volver a Jugar</button>
+        <div id="confetti-container"></div>
+    </div>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // En esta etapa se insertarán las URL fotográficas después de que la IA las genere.
+        // Por ahora se cargarán con un fallback de texto.
+        const allAnimals = [
+            { id: 'leon', emoji: '🦁', image: 'https://images.unsplash.com/photo-1614027164847-1b28cfe1df60?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', type: 'bosque' },
+            { id: 'elefante', emoji: '🐘', image: 'https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', type: 'bosque' },
+            { id: 'conejo', emoji: '🐇', image: 'https://images.unsplash.com/photo-1585110396000-c9fd45b2084d?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', type: 'bosque' },
+            { id: 'jirafa', emoji: '🦒', image: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', type: 'bosque' },
+            { id: 'ballena', emoji: '🐋', image: 'https://images.unsplash.com/photo-1568430462989-44163eb1752d?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', type: 'oceano' },
+            { id: 'pez', emoji: '🐟', image: 'https://images.unsplash.com/photo-1524704654690-b56c05c78a00?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', type: 'oceano' },
+            { id: 'pulpo', emoji: '🐙', image: 'https://images.unsplash.com/photo-1545671598-144bb2776c5b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', type: 'oceano' },
+            { id: 'delfin', emoji: '🐬', image: 'https://images.unsplash.com/photo-1607153333881-815777acb287?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80', type: 'oceano' }
+        ];
+
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const winScreen = document.getElementById('win-screen');
+        const animalContainer = document.getElementById('animal-container');
+        const feedbackIcon = document.getElementById('feedback-icon');
+        const confettiContainer = document.getElementById('confetti-container');
+        
+        let currentLevel = 1;
+        let animalsQueue = [];
+        let synth = window.speechSynthesis;
+
+        function speak(text) {
+            if (synth.speaking) synth.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'es-MX';
+            utterance.rate = 0.9;
+            synth.speak(utterance);
+        }
+
+        function playSound(type) {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3);
+            } else if (type === 'wrong') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(200, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(100, ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.2);
+            } else if (type === 'win') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+                osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2);
+                osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.6);
+            }
+        }
+
+        function shuffleArray(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        function initLevel() {
+            animalContainer.innerHTML = '';
+            let pool = [];
+            if (currentLevel === 1) {
+                pool = shuffleArray([...allAnimals.filter(a => a.type === 'bosque').slice(0, 2), ...allAnimals.filter(a => a.type === 'oceano').slice(0, 2)]);
+                document.getElementById('next-level-btn').classList.remove('hidden');
+                document.getElementById('restart-btn').classList.add('hidden');
+            } else {
+                pool = shuffleArray(allAnimals);
+                document.getElementById('next-level-btn').classList.add('hidden');
+                document.getElementById('restart-btn').classList.remove('hidden');
+            }
+            animalsQueue = pool;
+            spawnNextAnimal();
+        }
+
+        function spawnNextAnimal() {
+            if (animalsQueue.length === 0) {
+                levelComplete();
+                return;
+            }
+
+            const animalData = animalsQueue.pop();
+            const el = document.createElement('div');
+            el.classList.add('animal-token');
+            el.dataset.type = animalData.type;
+            
+            // Reemplazo visual: Usaremos las fotos reales generadas por IA.
+            if(animalData.image) {
+               el.style.backgroundImage = `url('${animalData.image}')`;
+            } else {
+               el.textContent = animalData.emoji; // fallback temporal
+            }
+            
+            animalContainer.appendChild(el);
+            setupDrag(el);
+        }
+
+        function setupDrag(el) {
+            let isDragging = false, startX, startY;
+
+            const onMove = (e) => {
+                if (!isDragging) return;
+                e.preventDefault(); 
+                const cx = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                const cy = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                el.style.transform = `translate(${cx - startX}px, ${cy - startY}px) scale(1.15)`;
+            };
+
+            const onEnd = (e) => {
+                if (!isDragging) return;
+                isDragging = false; el.classList.remove('dragging');
+                document.removeEventListener('mousemove', onMove); document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('mouseup', onEnd); document.removeEventListener('touchend', onEnd);
+                
+                const cx = e.type.includes('mouse') ? e.clientX : e.changedTouches[0].clientX;
+                const cy = e.type.includes('mouse') ? e.clientY : e.changedTouches[0].clientY;
+
+                el.style.display = 'none';
+                const elemBelow = document.elementFromPoint(cx, cy);
+                el.style.display = 'flex';
+
+                const habitat = elemBelow ? elemBelow.closest('.habitat') : null;
+
+                if (habitat && habitat.dataset.type === el.dataset.type) {
+                    playSound('correct'); showFeedback('✅');
+                    const rect = habitat.getBoundingClientRect();
+                    const dropX = cx - rect.left - (el.offsetWidth / 2);
+                    const dropY = cy - rect.top - (el.offsetHeight / 2);
+                    
+                    el.style.transform = '';
+                    el.style.left = Math.max(20, Math.min(dropX, rect.width - el.offsetWidth - 20)) + 'px';
+                    el.style.top = Math.max(20, Math.min(dropY, rect.height - el.offsetHeight - 20)) + 'px';
+                    el.classList.add('placed');
+                    habitat.appendChild(el);
+                    
+                    setTimeout(spawnNextAnimal, 400);
+                } else {
+                    playSound('wrong'); showFeedback('❌');
+                    el.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    el.style.transform = 'translate(0, 0) scale(1)';
+                }
+            };
+
+            const onStart = (e) => {
+                isDragging = true; el.classList.add('dragging'); el.style.transition = 'none';
+                startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+                document.addEventListener('mousemove', onMove); document.addEventListener('touchmove', onMove, {passive: false});
+                document.addEventListener('mouseup', onEnd); document.addEventListener('touchend', onEnd);
+            };
+
+            el.addEventListener('mousedown', onStart); el.addEventListener('touchstart', onStart, {passive: true});
+        }
+
+        function showFeedback(text) {
+            feedbackIcon.textContent = text;
+            feedbackIcon.style.opacity = '1'; feedbackIcon.style.transform = 'translate(-50%, -50%) scale(1.5)';
+            setTimeout(() => { feedbackIcon.style.opacity = '0'; feedbackIcon.style.transform = 'translate(-50%, -50%) scale(1)'; }, 600);
+        }
+
+        function levelComplete() {
+            playSound('win');
+            setTimeout(() => {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                winScreen.classList.add('active');
+                generateConfetti();
+                if(currentLevel === 1) speak("¡Estupendo! Todo listo para la fase dos.");
+                else speak("¡Misión cumplida! Eres un gran protector de la naturaleza.");
+            }, 800);
+        }
+
+        function generateConfetti() {
+            confettiContainer.innerHTML = '';
+            const colors = ['#2ecc71', '#3498db', '#9b59b6', '#f1c40f', '#e74c3c'];
+            for(let i=0; i<60; i++) {
+                const conf = document.createElement('div');
+                conf.classList.add('confetti');
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                conf.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                conf.style.animationDelay = Math.random() * 2 + 's';
+                confettiContainer.appendChild(conf);
+            }
+        }
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            gameScreen.classList.add('active');
+            speak("Lleva la fauna a su entorno nativo.");
+            currentLevel = 1; initLevel();
+        });
+
+        document.getElementById('next-level-btn').addEventListener('click', () => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            gameScreen.classList.add('active'); currentLevel = 2;
+            document.querySelectorAll('.habitat .animal-token').forEach(e => e.remove());
+            confettiContainer.innerHTML = '';
+            speak("Protege al resto de las especies."); initLevel();
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            gameScreen.classList.add('active'); currentLevel = 1;
+            document.querySelectorAll('.habitat .animal-token').forEach(e => e.remove());
+            confettiContainer.innerHTML = '';
+            speak("Vamos a hacerlo de nuevo."); initLevel();
+        });
+    });
+    </script>
+</body>
+</html>
